@@ -1,0 +1,11 @@
+Tutorial Sqoop
+
+Para acceder a mysql en haddop la instruccion es:
+
+mysql -u root -h 192.168.80.33 -p
+#la contraseña es root, que lo pide después de alimentar la linea
+
+#trabajo todo como un mysql normal
+
+
+

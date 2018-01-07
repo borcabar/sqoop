@@ -1,0 +1,178 @@
+Ejercicio Sqoop
+
+Ejercicio 1
+
+#abrir una ventana del edge y acceder al mysql en el cluster
+mysql -u root -h 192.168.80.33 -p
+
+#confirmo que existe movielens.ratings_p1, 
+#existe!
+
+#hago el directorio donde guardar el ejercicio
+/user/bcabrera/p1/ratings_p1_e11
+
+#importo la tabla de mysql a hdfs usadno sqoop en el split_by aporpiado
+sqoop import \
+--connect jdbc:mysql://192.168.80.33:3306/movielens \
+--username root \
+--P \
+--split-by user_type \
+--table ratings_p1 \
+--target-dir /user/bcabrera/p1/ratings_p1_e11
+
+#me pide la contraseña, que es 'root'
+
+#borro el directorio que he hecho 
+hadoop fs -rm -r -skipTrash /user/bcabrera/p1/ratings_p1_e11
+
+#ipara el punto 1.2 debo hacer 10 mappers
+sqoop import \
+--connect jdbc:mysql://192.168.80.33:3306/movielens \
+--username root \
+--P \
+--split-by id \
+--table ratings_p1 \
+--m 10 \
+--target-dir /user/bcabrera/p1/ratings_p1_e12
+
+
+[bcabrera@edge01 ~]$ hadoop fs -ls /user/bcabrera/p1/ratings_p1_e12
+Found 11 items
+-rw-r--r--   3 bcabrera bcabrera          0 2017-11-16 13:48 /user/bcabrera/p1/ratings_p1_e12/_SUCCESS
+-rw-r--r--   3 bcabrera bcabrera  682335398 2017-11-16 13:48 /user/bcabrera/p1/ratings_p1_e12/part-m-00000
+-rw-r--r--   3 bcabrera bcabrera  693446501 2017-11-16 13:48 /user/bcabrera/p1/ratings_p1_e12/part-m-00001
+-rw-r--r--   3 bcabrera bcabrera  693446501 2017-11-16 13:48 /user/bcabrera/p1/ratings_p1_e12/part-m-00002
+-rw-r--r--   3 bcabrera bcabrera  693446501 2017-11-16 13:48 /user/bcabrera/p1/ratings_p1_e12/part-m-00003
+-rw-r--r--   3 bcabrera bcabrera  693447822 2017-11-16 13:48 /user/bcabrera/p1/ratings_p1_e12/part-m-00004
+-rw-r--r--   3 bcabrera bcabrera  713446765 2017-11-16 13:48 /user/bcabrera/p1/ratings_p1_e12/part-m-00005
+-rw-r--r--   3 bcabrera bcabrera  713446765 2017-11-16 13:48 /user/bcabrera/p1/ratings_p1_e12/part-m-00006
+-rw-r--r--   3 bcabrera bcabrera  713446765 2017-11-16 13:48 /user/bcabrera/p1/ratings_p1_e12/part-m-00007
+-rw-r--r--   3 bcabrera bcabrera  713446745 2017-11-16 13:48 /user/bcabrera/p1/ratings_p1_e12/part-m-00008
+-rw-r--r--   3 bcabrera bcabrera  713446765 2017-11-16 13:48 /user/bcabrera/p1/ratings_p1_e12/part-m-00009
+
+#esta es la descripción de audiences.contents
+MySQL [audiences]> describe contents;
++----------+--------------+------+-----+---------+-------+
+| Field    | Type         | Null | Key | Default | Extra |
++----------+--------------+------+-----+---------+-------+
+| id       | int(11)      | NO   | PRI | NULL    |       |
+| vod_id   | bigint(20)   | YES  |     | NULL    |       |
+| vod_name | varchar(250) | YES  |     | NULL    |       |
+| genre    | varchar(50)  | YES  |     | NULL    |       |
++----------+--------------+------+-----+---------+-------+
+
+#esta es la descripcion de audiences.tv_events
+MySQL [audiences]> describe tv_events;
++------------+------------+------+-----+-------------------+-------+
+| Field      | Type       | Null | Key | Default           | Extra |
++------------+------------+------+-----+-------------------+-------+
+| id         | int(11)    | NO   | PRI | NULL              |       |
+| user_id    | int(11)    | YES  |     | NULL              |       |
+| vod_id     | bigint(20) | YES  |     | NULL              |       |
+| start_time | timestamp  | NO   |     | CURRENT_TIMESTAMP |       |
+| end_time   | timestamp  | NO   |     | CURRENT_TIMESTAMP |       |
++------------+------------+------+-----+-------------------+-------+
+
+Problema 2
+sqoop import \
+--connect jdbc:mysql://192.168.80.33:3306/audiences \
+--username root \
+--P \
+--query 'select t.user_id,t.id,c.vod_name from tv_events t join contents c on t.vod_id=c.vod_id where t.id between 100 and 200 and $CONDITIONS' \
+--split-by c.id \
+--m 2 \
+--target-dir /user/bcabrera/p1/ratings_p1_e2
+
+sqoop import \
+--connect jdbc:mysql://192.168.80.33:3306/audiences \
+--username root \
+--P \
+--query 'select t.id,t.user_id,c.vod_name from tv_events t join contents c on t.vod_id=c.vod_id where (t.id between 100 and 200) and $CONDITIONS' \
+--split-by t.id \
+--m 2 \
+--target-dir /user/bcabrera/p1/ratings_p1_e2
+
+
+Problema 3
+#crear una tabla hive, e importar las tablas sql a ella con formato parquet
+#con este comando creo una nueva tabla hive
+#mi database hive debe exitir previamente
+
+MySQL [audiences]> show tables;
++---------------------+
+| Tables_in_audiences |
++---------------------+
+| contents            |
+| tv_events           |
++---------------------+
+
+contents -> 129
+tv_events -> 287
+
+#lo intento con una sola tabla
+
+
+#este es mi código
+
+sqoop import-all-tables \
+--connect jdbc:mysql://192.168.80.33:3306/audiences \
+--username root \
+--password root \
+--hive-drop-import-delims \
+--create-hive-table \
+--as-parquetfile \
+--warehouse-dir prac31
+
+
+
+
+
+sqoop import-all-tables \
+--connect jdbc:mysql://192.168.80.33:3306/audiences \
+--username root \
+--P \
+--hive-import \
+--create-hive-table \
+--hive-database bcabrera\
+--warehouse-dir  julia\
+--as-parquetfile
+
+
+
+
+--hive-table bcabrera.tv_events \
+--hive-overwrite \
+--create-hive-table \
+--warehouse-dir hdfs://nameservice1/user/hive/warehouse/bcabrera.db 
+--target-dir bcabrera
+--create-hive-table \
+--hive-database bcabrera \
+
+sqoop import --connect jdbc:mysql://xx.xx.xx.xx/database \
+    --username username --password mypass \
+    --query 'SELECT page_id,user_id FROM pages_users WHERE $CONDITIONS' --split-by page_id \
+    --hive-import \
+    --hive-database default \ 
+    --hive-table pages_users3 \
+    --target-dir hive_pages_users 
+    --as-parquetfile
+
+#patxi 1
+[20:27, 16/11/2017] Patxi MBD: sqoop import-all-tables \
+--connect jdbc:mysql://192.168.80.33:3306/audiences \
+--username root \
+--P \
+--hive-import \
+--hive-overwrite \
+--as-parquetfile \
+--create-hive-table
+
+#stackoverflow import lots of tables
+sqoop import-all-tables --connect jdbc:mysql://localhost/sqoop --username root --password hadoop  --target-dir '/Sqoop21/AllTables'
+
+
+ mysqldump audiences > dump.sql
+ mysqladmin create audiences_ale
+ mysql audiences_ale < dump.sql
+
+mysqldbcopy --source=jdbc:mysql://192.168.80.33:3306 --destination=jdbc:mysql://192.168.80.33:3306 pepito:pepito2
